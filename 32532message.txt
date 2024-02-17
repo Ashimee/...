@@ -1,0 +1,91 @@
+(function(Scratch) {
+    'use strict';
+    class e {
+      getInfo() {
+        return {
+          id: '0znzwOGHBIBHTUWGHETRHILTRJBIDRHBIDTRJLBNLRI',
+          name: 'why lord (compiler)',
+          blocks: [
+            {
+              opcode: 'e',
+              blockType: Scratch.BlockType.REPORTER,
+              text: 'execute branch [NUM]',
+              allowDropAnywhere: true,
+              arguments: {
+                NUM: {type: 'number', defaultValue:1}
+              }
+            },
+            {
+              opcode: 'l',
+              blockType: Scratch.BlockType.CONDITIONAL,
+              text: 'i have no code [arg]', branchCount: 2,
+              arguments: {
+                arg: {type: null}
+              }
+            }
+          ]
+        };
+      }
+toStack(startId, target, skipShadow) {
+        skipShadow = skipShadow ?? true;
+        const blocks = target.blocks;
+        let block = blocks.getBlock(startId), newBlock = block, fCheckPar = false;
+        do {
+          newBlock = blocks.getBlock(block?.parent);
+          if (!newBlock) return -4;
+          if (block?.parent === newBlock?.next) return block;
+          if (newBlock?.next && !fCheckPar) return newBlock;
+          const inputs = Object.values(newBlock?.inputs ?? {});
+          if (inputs.length < 1) return -1;
+          for (const input of inputs) {
+            if (input.name.startsWith('SUBSTACK')) {
+              if (input.block === block.id) return newBlock;
+            }
+            if ([input.block,(skipShadow?{}:input.shadow)].includes(block.id)) {
+              block = newBlock;
+              if (block.next === null && !fCheckPar) {
+                fCheckPar = true;
+              } else {
+                fCheckPar = false;
+                const tempBlock = blocks.getBlock(block?.parent);
+                if (block?.id === tempBlock?.next) return block;
+              }
+              continue;
+            } else {
+              if (newBlock.id === block.id) continue;
+              const tempBlock = blocks.getBlock(newBlock?.parent);
+              if (tempBlock?.next === block?.parent) return block;
+              else return tempBlock;
+            }
+          }
+        } while (block?.parent);
+        return ((newBlock ?? block) ?? -2);
+      } 
+    setGlobalStateThread(thread, sequencer) {
+      if (!thread.isCompiled) return;
+      const oldGenerator = thread.generator;
+      thread.generator = { next: () => {} };
+      sequencer.stepThread(thread);
+      thread.generator = oldGenerator;
+    }
+      e({ NUM }, util) {
+        NUM = Scratch.Cast.toNumber(NUM);
+        if (util.thread.isCompiled) {
+          const seq = vm.runtime.sequencer;
+          const thread = util.thread, myContainer = this.toStack(thread.peekStack(), thread.target);
+          const peekStackOld = thread.peekStack.bind(thread);
+          thread.peekStack = () => {
+            thread.peekStack = peekStackOld;
+            return myContainer.id;
+          }
+          seq.stepToBranch(thread, NUM, false);
+          thread.stack.pop(thread.stack.length - 2);
+          this.setGlobalStateThread(thread, seq);
+          return;
+        }
+        util.startBranch(NUM, false);
+      }
+      l(){}
+    }
+    Scratch.extensions.register(new e());
+  })(Scratch);

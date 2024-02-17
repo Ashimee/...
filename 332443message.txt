@@ -1,0 +1,81 @@
+(function (Scratch) {
+    'use strict';
+    const vm = Scratch.vm, runtime = vm.runtime;
+    let workspace;
+    function modifyBlocks() {}
+    vm.on('EXTENSION_ADDED', tryUseScratchBlocks);
+    vm.on('BLOCKSINFO_UPDATE', tryUseScratchBlocks);
+    tryUseScratchBlocks();
+    function tryUseScratchBlocks() {
+        if (!window.ScratchBlocks) return;
+        // @ts-ignore Not typed yet
+        workspace = ScratchBlocks.getMainWorkspace();
+        vm.removeListener('EXTENSION_ADDED', tryUseScratchBlocks);
+        vm.removeListener('BLOCKSINFO_UPDATE', tryUseScratchBlocks);
+        vm.on('workspaceUpdate', modifyBlocks);
+        vm.runtime.on('BLOCK_DRAG_UPDATE', modifyBlocks);
+        vm.runtime.on('BLOCK_DRAG_END', modifyBlocks);
+    }
+    class extension {
+        getInfo() {
+            return {
+                id: 'egwegrtherth',
+                name: 'bad apple',
+                blocks: [
+                    {
+                        hideFromPalette: true,
+                        opcode: 'e',
+                        text: 'bad apple',
+                        beInlineSM: 1,
+                    },
+                    {
+                        hideFromPalette: true,
+                        opcode: 'a',
+                        text: 'bad apple__________________-',
+                    },
+                    {
+                        blockType: Scratch.BlockType.XML,
+                        xml: `<block type="egwegrtherth_e" id="6345645"><statement name="SUBSTACK">
+<block type="egwegrtherth_a" id="geger"></block><next>
+<block type="egwegrtherth_a" id="wegaef"></block><next>
+<block type="egwegrtherth_a" id="wefweger"></block><next>
+<block type="egwegrtherth_a" id="wdqwdwe"></block><next>
+<block type="egwegrtherth_a" id="gwergrq34"></block><next>
+<block type="egwegrtherth_a" id="wdqwewegre"></block><next>
+<block type="egwegrtherth_a" id="dwwegewr"></block><next>
+<block type="egwegrtherth_a" id="awdawq"></block><next>
+<block type="egwegrtherth_a" id="r34t34"></block><next>
+<block type="egwegrtherth_a" id="223tree"></block><next>
+<block type="egwegrtherth_a" id="frhe43t4"></block><next>
+<block type="egwegrtherth_a" id="wqq1r3"></block><next>
+<block type="egwegrtherth_a" id="g4g5h"></block><next>
+<block type="egwegrtherth_a" id="tr43yt34"></block><next>
+<block type="egwegrtherth_a" id="354y456y54"></block>
+</statement></next></next></next></next></next></next></next></next></next></next></next></next></next></block>`
+                    },
+                ],
+            };
+        }
+        e() {}
+        a() {}
+    }
+    /* I made this first with ScratchBlocks, then lily did smarter than me :cri: 
+      https://github.com/LilyMakesThings/extensions/blob/Experiments/extensions/Lily/Experiments/inlineSimple.js
+      I modified it alot for my uses :P */
+    // @ts-ignore Not typed yet
+    const cbfsb = runtime._convertBlockForScratchBlocks.bind(runtime);
+    // @ts-ignore Not typed yet
+    runtime._convertBlockForScratchBlocks = function (blockInfo, categoryInfo) {
+        if (blockInfo.beInlineSM) {
+            (blockInfo.blockType = Scratch.BlockType.BOOLEAN), (blockInfo.branchCount = 1);
+            blockInfo.outputShape = 3;
+            blockInfo.disableMonitor = true;
+            if (!Array.isArray(blockInfo.text)) blockInfo.text = [blockInfo.text];
+        }
+        const res = cbfsb(blockInfo, categoryInfo);
+        if (blockInfo.outputShape) res.json.outputShape = blockInfo.outputShape;
+        return res;
+    };
+    //@ts-ignore
+    Scratch.extensions.register(new extension());
+})(Scratch);
