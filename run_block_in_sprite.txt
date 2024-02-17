@@ -1,0 +1,143 @@
+(function (Scratch) {
+  function cloneBlock(id, target) {
+    function isInvalid(data) {
+      return data == null || data == undefined;
+    }
+    let needed = [];
+    let block = target.blocks.getBlock(id);
+    if (isInvalid(block)) {
+      return [];
+    }
+    Object.values(block.inputs).forEach((key) => {
+      if (key.hasOwnProperty('shadow') && key.block === key.shadow) {
+        needed = [...needed, ...cloneBlock(key.block, target)];
+        return;
+      } else {
+        if (key.hasOwnProperty('shadow'))
+          needed = [...needed, ...cloneBlock(key.shadow, target)];
+        if (key.hasOwnProperty('block'))
+          needed = [...needed, ...cloneBlock(key.block, target)];
+      }
+    });
+    Object.values(block.fields).forEach((key) => {
+      if (key.hasOwnProperty('id'))
+        needed = [...needed, ...cloneBlock(key.id, target)];
+    });
+    needed.push(block);
+    return needed;
+  }
+  const blocks = [
+    {
+      opcode: 'runInSprite',
+      blockType: Scratch.BlockType.CONDITIONAL,
+      text: 'run code in [SPRITE] with thread id: [id]',
+      arguments: {
+        SPRITE: {
+          type: Scratch.ArgumentType.STRING,
+          menu: 'targets',
+        },
+        id: {
+          type: Scratch.ArgumentType.STRING,
+          defaultValue: 'my id for stopping',
+        },
+      },
+    },
+    {
+      opcode: 'checkThread',
+      blockType: Scratch.BlockType.BOOLEAN,
+      text: 'is thread with id: [id] running?',
+      arguments: {
+        id: {
+          type: Scratch.ArgumentType.STRING,
+          defaultValue: 'my id for stopping',
+        },
+      },
+    },
+    {
+      opcode: 'stopThreadAndCleanup',
+      blockType: Scratch.BlockType.COMMAND,
+      text: 'stop thread id: [id] and cleanup',
+      arguments: {
+        id: {
+          type: Scratch.ArgumentType.STRING,
+          defaultValue: 'my id for stopping',
+        },
+      },
+    },
+  ];
+  window.myThreads = {};
+  class Extension {
+    getInfo() {
+      return {
+        id: '0znzwRunInSprite',
+        name: 'Run in sprite',
+        color1: '#15b9a4',
+        color2: '#0f8173',
+        blocks: blocks,
+        menus: {
+          targets: {
+            acceptReporters: true,
+            items: '_getTargets',
+          },
+        },
+      };
+    }
+    _getTargets() {
+      const targets = vm.runtime.targets.filter(e=>e.isOriginal).map(e=>e.getName());
+      targets.pop(targets.indexOf(vm.runtime.getEditingTarget().getName()));
+      if (targets.length > 0) {
+        return targets;
+      } else {
+        return [''];
+      }
+    }
+    async runInSprite({ SPRITE, id }, util) {
+      SPRITE = Scratch.Cast.toString(SPRITE);
+      id = Scratch.Cast.toString(id);
+      let endTarget = undefined;
+      if (SPRITE.toLowerCase() === 'stage') endTarget = vm.runtime._stageTarget;
+      if (!endTarget) endTarget = vm.runtime.getSpriteTargetByName(SPRITE);
+      if (!endTarget) return 0;
+      const thread = util.thread;
+      const target = util.target;
+      const blocks = target.blocks;
+      const startBlock = blocks.getBranch(thread.peekStack(), 1);
+      let cloneOver = [];
+      let block = blocks.getBlock(startBlock);
+      cloneOver.push(cloneBlock(block.id, target));
+      while (block.next) {
+        if (block.next) block = blocks.getBlock(block.next);
+        cloneOver.push(cloneBlock(block.id, target));
+      }
+      cloneOver[0].parent = null;
+      for (let i = 0; i < cloneOver.length; i++) {
+        const blocks2 = cloneOver[i];
+        for (let j = 0; j < blocks2.length; j++) {
+          block = blocks2[j];
+          endTarget.blocks._blocks[block.id] = block;
+        }
+      }
+      endTarget.blocks._addScript(startBlock);
+      vm.runtime.requestBlocksUpdate();
+      vm.refreshWorkspace();
+      var newThread = vm.runtime._pushThread(startBlock, endTarget, {
+        stackClick: true,
+      });
+      if (myThreads[id] == undefined) myThreads[id] = newThread;
+      return 0;
+    }
+    checkThread({ id }) {
+      if (myThreads[id] == undefined) return false;
+      return !myThreads[id].isKilled;
+    }
+    stopThreadAndCleanup({ id }) {
+      let thread = myThreads[id];
+      if (thread == undefined) return;
+      thread.stopThisScript();
+      thread.target.blocks._deleteScript(startBlock);
+      vm.runtime.requestBlocksUpdate();
+      myThreads[id] = undefined;
+    }
+  }
+  Scratch.extensions.register(new Extension());
+})(Scratch);
