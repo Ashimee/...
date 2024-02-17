@@ -1,0 +1,383 @@
+/**
+ *
+ * DenfoJS (for tw)  || v1.0
+ * All code by 0znzw || Licensed Under MIT license.
+ * https://scratch.mit.edu/users/0znzw/
+ * DO NOT REMOVE THIS COMMENT
+ *
+ *
+ *
+ *
+ * todo:
+ *   tensor support
+ *   boolean mask: https://danfo.jsdata.org/getting-started#selection-with-boolean-mask
+ *   create settings for FillNa: https://danfo.jsdata.org/getting-started#text~=Filling%20missing%20values%20in%20specific%20columns%20with%20specific%20values:
+ *   add operations: https://danfo.jsdata.org/getting-started#operations
+ *   finish everything past: https://danfo.jsdata.org/getting-started#join
+ *   start JSON support
+ *   finish/start CSV reading support
+ *
+ */
+(function (Scratch) {
+    if (!Scratch.extensions.unsandboxed)
+        throw new Error('DenfoJS (for tw) must run unsandboxed');
+    function label(text) {
+        return { text, blockType: 'label' };
+    }
+    class dfdExt {
+        constructor() {
+            const script = document.createElement('script');
+            script.src =
+                'https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js';
+            document.body.appendChild(script);
+            this.blocks = [
+                {
+                    opcode: 'hasDenfo',
+                    blockType: 'Boolean',
+                    text: 'Denfo.js Library loaded?',
+                },
+                {
+                    opcode: 'version',
+                    blockType: 'reporter',
+                    text: 'Denfo.js Version',
+                },
+                label('Preset values'),
+                {
+                    opcode: 'nul',
+                    blockType: 'reporter',
+                    text: 'null',
+                },
+                {
+                    opcode: 'undef',
+                    blockType: 'reporter',
+                    text: 'undefined',
+                },
+                {
+                    opcode: 'na',
+                    blockType: 'reporter',
+                    text: 'NaN',
+                },
+                label('Parsing & Conversions'),
+                {
+                    opcode: 'CreateSlice',
+                    blockType: 'reporter',
+                    text: 'Slice [start]:[end]',
+                    arguments: {
+                        start: {
+                            type: 'number',
+                        },
+                        end: {
+                            type: 'number',
+                        },
+                    },
+                },
+                {
+                    opcode: 'JSONparse',
+                    blockType: 'reporter',
+                    text: 'JSON [json] -> Object',
+                    arguments: {
+                        json: {
+                            type: 'string',
+                        },
+                    },
+                },
+                {
+                    opcode: 'toCSV',
+                    blockType: 'reporter',
+                    text: '[obj] to CSV',
+                    arguments: {
+                        obj: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'newSeries',
+                    blockType: 'reporter',
+                    text: 'array [arr] -> Series',
+                    arguments: {
+                        arr: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'newDataFrame',
+                    blockType: 'reporter',
+                    text: 'array-obj [obj] -> DataFrame',
+                    arguments: {
+                        obj: {
+                            type: null,
+                        },
+                    },
+                },
+                label('DataFrame fetching'),
+                {
+                    opcode: 'DataFrameHead',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] Head [count]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        count: {
+                            type: 'number',
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameTail',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] Tail [count]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        count: {
+                            type: 'number',
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameIndex',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] Index',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameColumns',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] Columns',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameDescribe',
+                    blockType: 'reporter',
+                    text: 'Describe DataFrame [df]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                    },
+                },
+                label('Sorting & Merging'),
+                {
+                    opcode: 'DataFrameSortValues',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] sort values: [column] inplace [inplace]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        column: {
+                            type: 'string',
+                        },
+                        inplace: {
+                            type: 'boolean',
+                        },
+                    },
+                },
+                {
+                    opcode: 'concat',
+                    blockType: 'reporter',
+                    text: 'concat DF list [dfList] on axis [axis]',
+                    arguments: {
+                        dfList: {
+                            type: null,
+                        },
+                        axis: {
+                            type: 'number',
+                        },
+                    },
+                },
+                label('Managment'),
+                {
+                    opcode: 'DataFrameQuery',
+                    blockType: 'reporter',
+                    text: 'Query [query] DataFrame [df]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        query: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameAddColumn',
+                    blockType: 'reporter',
+                    text: 'Add Column [column] with [values] to DataFrame [df]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        column: {
+                            type: 'string',
+                        },
+                        values: {
+                            type: null,
+                        },
+                    },
+                },
+                label('NA Handling'),
+                {
+                    opcode: 'DataFrameDropNa',
+                    blockType: 'reporter',
+                    text: 'Drop Na on DataFrame [df] and AXIS [axis]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        axis: {
+                            type: 'number',
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameFillNa',
+                    blockType: 'reporter',
+                    text: 'Fill Na on DataFrame [df] and NA setting [NA]',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                        NA: {
+                            type: null,
+                        },
+                    },
+                },
+                {
+                    opcode: 'DataFrameIsNA',
+                    blockType: 'reporter',
+                    text: 'DataFrame [df] is NA',
+                    arguments: {
+                        df: {
+                            type: null,
+                        },
+                    },
+                },
+            ];
+        }
+        getInfo() {
+            return {
+                id: 'dfd0znzw',
+                name: 'Denfo.JS',
+                blocks: this.blocks,
+                menus: {},
+            };
+        }
+        JSONparse(args) {
+            try {
+                return JSON.parse(args.json);
+            } catch (err) {
+                return JSON.stringify({ err });
+            }
+        }
+        hasDenfo() {
+            return (
+                Object.hasOwn(window, 'dfd') && typeof window.dfd === 'object'
+            );
+        }
+        version() {
+            return dfd.__version;
+        }
+        newSeries(args) {
+            try {
+                return new dfd.Series(args.arr);
+            } catch {
+                return new dfd.Series([[]]);
+            }
+        }
+        newDataFrame(args) {
+            try {
+                return new dfd.DataFrame(args.obj);
+            } catch {
+                return new dfd.DataFrame([{}]);
+            }
+        }
+        DataFrameHead(args) {
+            return args.df.head(Scratch.Cast.toNumber(args.count));
+        }
+        DataFrameTail(args) {
+            return args.df.tail(Scratch.Cast.toNumber(args.count));
+        }
+        DataFrameIndex(args) {
+            return args.df.index;
+        }
+        DataFrameColumns(args) {
+            return args.df.columns;
+        }
+        DataFrameDescribe(args) {
+            return args.df.describe();
+        }
+        DataFrameSortValues(args) {
+            return args.df.sortValues(Scratch.Cast.toString(args.column), {
+                inplace: Scratch.Cast.toBoolean(args.inplace),
+            });
+        }
+        CreateSlice(args) {
+            return `${Scratch.Cast.toNumber(
+                args.start,
+            )}:${Scratch.Cast.toNumber(args.end)}`;
+        }
+        DataFrameLabelSlice(args) {
+            const settings = {};
+            if (args.rows !== null) settings.rows = args.rows;
+            if (args.columns !== null) settings.columns = args.columns;
+            return args.df.loc(settings);
+        }
+        DataFrameIntSlice(args) {
+            const settings = {};
+            if (args.rows !== null) settings.rows = args.rows;
+            if (args.columns !== null) settings.columns = args.columns;
+            return args.df.iloc(settings);
+        }
+        nul() {
+            return null;
+        }
+        DataFrameQuery(args) {
+            return args.df.query(args.query);
+        }
+        DataFrameAddColumn(args) {
+            return args.df.addColumn({
+                column: Scratch.Cast.toString(args.column),
+                values: args.values,
+                inplace: true,
+            });
+        }
+        DataFrameDropNa(args) {
+            return args.df.dropNa({ axis: Scratch.Cast.toNumber(args.axis) });
+        }
+        DataFrameFillNa(args) {
+            return args.df.dropNa(args.NA.fill, {});
+        }
+        DataFrameIsNA(args) {
+            return args.df.isNa();
+        }
+        concat(args) {
+            return dfd.concat({
+                dfList: args.dfList,
+                axis: Scratch.Cast.toNumber(args.axis),
+            });
+        }
+        undef() {
+            return undefined;
+        }
+        na() {
+            return NaN;
+        }
+        toCSV(args) {
+            return dfd.toCSV(args.obj);
+        }
+    }
+    Scratch.extensions.register(new dfdExt());
+})(Scratch);

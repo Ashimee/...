@@ -1,0 +1,216 @@
+(function () {
+  /**
+   * Clamp Extension API - BETA 1.7
+   * @author Ashimee {https://github.com/Ashimee}
+   */
+  const soup_ =
+    '!#%()*+,-./:;=?@[]^_`{|}~' +
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  window.Blockly = Clamp.Blockly;
+  var hasOwn = (obj, key) => Object.prototype.hasOwnProperty(obj, key);
+  Clamp.NVER = 1.7;
+  if (!Clamp?.ExtAPI || Clamp.ExtAPI.VERSION > Clamp.NVER)
+    Clamp.ExtAPI = {
+      VERSION: Clamp.NVER,
+      refreshToolbox(toolboxXML) {
+        const workspace = Clamp.getWorkspace();
+        Clamp.Toolbox = toolboxXML ?? Clamp.Toolbox;
+        workspace.updateToolbox(Clamp.Toolbox);
+        workspace.refreshToolboxSelection();
+      },
+      _pushCategory(xml) {
+        let toolboxXML = Clamp.Toolbox;
+        toolboxXML = toolboxXML.replace('</xml>', `\n${xml}\n</xml>`);
+        Clamp.ExtAPI.refreshToolbox(toolboxXML);
+        Clamp.getWorkspace().refreshTheme();
+      },
+      _copyBlkAttr(obj, old, new_) {
+        obj[new_] = obj[old];
+        delete obj[old];
+        return obj;
+      },
+      _repCategory(name, newXML) {
+        const doc = new DOMParser()
+          .parseFromString(Clamp.Toolbox, 'text/html')
+          .querySelector('xml');
+        doc.querySelector(
+          `category[name="${name.replaceAll('\\', '\\\\').replaceAll('"', '"')}"]`,
+        ).outerHTML = newXML;
+        return doc.outerHTML;
+      },
+      xmlEscape(unsafe) {
+        return String(unsafe).replace(/[<>&'"]/g, (c) => {
+          switch (c) {
+            case '<':
+              return '&lt;';
+            case '>':
+              return '&gt;';
+            case '&':
+              return '&amp;';
+            case "'":
+              return '&apos;';
+            case '"':
+              return '&quot;';
+          }
+        });
+      },
+
+      /**
+       * Generate a unique ID, from Blockly.  This should be globally unique.
+       * 87 characters ^ 20 length > 128 bits (better than a UUID).
+       * @return {string} A globally unique ID string.
+       */
+      uid() {
+        const length = 20;
+        const soupLength = soup_.length;
+        const id = [];
+        for (let i = 0; i < length; i++) {
+          id[i] = soup_.charAt(Math.random() * soupLength);
+        }
+        return id.join('');
+      },
+      _svl: {
+        genHeader(ei) {
+          const xe = Clamp.ExtAPI.xmlEscape;
+          let header =
+            '<category name="%name" id="%id" colour="%c1" colourSecondary="%c2" colourTertiary="%c3">';
+          header = header.replace('%name', xe(ei.name));
+          header = header.replace('%id', xe(ei.name));
+          header = header.replace('%c1', xe(ei.color1));
+          header = header.replace('%c2', xe(ei.color2 ?? ei.color1));
+          header = header.replace('%c3', xe(ei.color3 ?? ei.color1));
+          return header;
+        },
+        fixMsnBsArgs(block, ei) {
+          block.fullOp = `clampExt_${ei.id}_${block.opcode}`;
+          block.fullOpXML = Clamp.ExtAPI.xmlEscape(block.fullOp);
+          block.gen = ei.generators[block.opcode];
+          if (!hasOwn(block, 'colour')) block.colour = ei.color1;
+          if (!hasOwn(block, 'inputsInline')) block.inputsInline = true;
+          if (!hasOwn(block, 'args0')) block.args0 = [];
+          return block;
+        },
+        blkXML(fmbaBlock) {
+          return `    <block type="${Clamp.ExtAPI.xmlEscape(fmbaBlock.fullOp)}"></block>`;
+        },
+      },
+      register(extensionInfo) {
+        const API = Clamp.ExtAPI,
+          _svl = API._svl;
+        Clamp.DarkTheme.blockStyles = Clamp.DarkTheme.blockStyles ?? {};
+        Clamp.DarkTheme.blockStyles[`clampExt_${extensionInfo.id}`] = {
+          colourPrimary: extensionInfo.color1,
+          colourSecondary: extensionInfo.color2 ?? extensionInfo.color1,
+          colourTertiary: extensionInfo.color3 ?? extensionInfo.color1,
+        };
+        const categoryXML = [_svl.genHeader(extensionInfo)];
+        for (let block of extensionInfo.blocks) {
+          if (block.isXML) {
+            if (typeof block.isXML === 'string') categoryXML.push(block.isXML);
+            else categoryXML.push(String(block?.xml));
+            continue;
+          }
+          block = _svl.fixMsnBsArgs(block, extensionInfo);
+          block = API._copyBlkAttr(block, 'arguments', 'args0');
+          block = API._copyBlkAttr(block, 'text', 'message0');
+          Clamp.registerBlock(block.fullOp, block, block.gen);
+          if (!block?.skipXMLpush) categoryXML.push(_svl.blkXML(block));
+        }
+        categoryXML.push('</category>');
+        const finalXML = categoryXML.join('');
+        if (!extensionInfo?.skipPush) Clamp.ExtAPI._pushCategory(finalXML);
+        return finalXML;
+      },
+    };
+
+  Clamp.State.getTargetByName = (NAME) =>
+    Clamp.State.currentProject.characters.find(
+      (character) => character.name === NAME,
+    );
+})();
+
+
+// oh yeah we got an api but its shit cause i made it 👍
+(function (Cap) {
+  const DO_VER = 1.7;
+
+  if (!Cap || Cap?.VERSION < DO_VER) {
+    console.error(
+      'Extension API is missing or outdated.\nPlease use version 1.3 if possible!',
+    );
+    return -1;
+  }
+  if (Cap.VERSION > DO_VER)
+    console.warn(
+      'Extension API is recommended to be version 1.3 for this extension.\nNewer versions may have updated / removed features, which may cause uninteded side effects.',
+    );
+
+  const {
+    compileVars,
+    javascriptGenerator,
+    canvas,
+    State,
+    Precompile,
+    Blockly,
+  } = window.Clamp;
+  const canvasRect = canvas.getBoundingClientRect();
+  const Project = () => State.currentProject,
+    EditTarget = () => State.getTargetById(State.editingTarget);
+
+class DaDropdown extends Blockly.FieldDropdown {
+  constructor(menuGenerator, validator, config) {
+    super(menuGenerator, validator, config);
+
+  }
+  showEditor_() {
+    this.workspace_ = (this.sourceBlock_).workspace;
+    if (
+      !quietInput &&
+      this.workspace_.options.modalInputs &&
+      (userAgent.MOBILE || userAgent.ANDROID || userAgent.IPAD)
+    ) {
+      this.showPromptEditor_();
+    } else {
+      this.showInlineEditor_(quietInput);
+    }
+  }
+}
+Blockly.fieldRegistry.register('da_dropdown', DaDropdown);
+
+
+  Cap.register({
+    id: '0znzwCustomDropdownTest',
+    name: "Text Dropdown test",
+    color1: '#2F6AE3',
+    color2: '#040f0b',
+    color3: '#040f0b',
+    blocks: [
+      {
+        opcode: 'test',
+        text: '%1',
+        output: ['Number'],
+  arguments: [
+    {
+      "type": "da_dropdown",
+      "name": "FIELDNAME",
+      "options": [
+        [ "first item", "ITEM1" ],
+        [ "second item", "ITEM2" ]
+      ]
+    }
+  ],
+
+      },
+    ],
+    generators: {
+      test(block) {
+        return [
+          `('')`,
+          Clamp.javascriptGenerator.ORDER_NONE,
+        ];
+      },
+    },
+  });
+  Clamp.enableLogOutput();
+  return 1;
+})(Clamp?.ExtAPI);

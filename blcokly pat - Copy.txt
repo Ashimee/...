@@ -1,0 +1,15 @@
+(function(Blockly){
+  const Connection = Blockly.Connection;
+  const proto = Connection.prototype;
+  const CC = Connection.CAN_CONNECT;
+  const RWT = Connection.REASON_WRONG_TYPE;
+  const RCF = Connection.REASON_CHECKS_FAILED;
+  if (Connection?.ccwr_) proto.canConnectWithReason_ = Connection.ccwr_;
+  Connection.ccwr_ = proto.canConnectWithReason_;
+  proto.canConnectWithReason_ = function(target) {
+	const reason = Connection.ccwr_.call(this, target);
+    if (reason === RWT || reason === RCF && this.sourceBlock_?.anarchyBitch) return CC;
+    return reason;
+  }
+})(ScratchBlocks);
+ScratchBlocks.getMainWorkspace().getBlockById('Eh~8jbk?xsN0HG3E|cIx').anarchyBitch = true;
